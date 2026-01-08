@@ -284,6 +284,12 @@ export const Dashboard = () => {
                 </div>
             </header>
 
+            <BreakTimer
+                events={state.currentDayLog.events}
+                currentStatus={state.currentStatus}
+                lastStatusChange={state.lastStatusChange}
+            />
+
             <ShiftInfoCard
                 data={state.currentDayLog.context}
                 onUpdate={handleShiftUpdate}
@@ -322,12 +328,6 @@ export const Dashboard = () => {
             <ActivityFeed
                 events={state.currentDayLog.events}
                 onUpdateEvent={handleEventUpdate}
-            />
-
-            <BreakTimer
-                events={state.currentDayLog.events}
-                currentStatus={state.currentStatus}
-                lastStatusChange={state.lastStatusChange}
             />
         </div>
     );
