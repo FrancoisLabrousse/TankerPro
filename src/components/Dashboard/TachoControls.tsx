@@ -9,7 +9,10 @@ interface Props {
     lastChange: string; // ISO
     stats: {
         totalDrive: number;
+        totalService: number; // Work + Available + Drive
         amplitude: number;
+        continuousDrive: number;
+        continuousService: number;
     };
     onStatusChange: (status: 'Drive' | 'Work' | 'Available' | 'Rest') => void;
 }
@@ -44,6 +47,12 @@ export const TachoControls = ({ status, lastChange, stats, onStatusChange }: Pro
         );
     };
 
+    // Alert Logic: 
+    // 1. Driving > 4h15 (255m) continuous
+    // 2. Service > 6h (360m) continuous => Warning at 5h45 (345m)
+    const showDriveAlert = stats.continuousDrive > 255;
+    const showServiceAlert = stats.continuousService > 345;
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4 h-64">
@@ -57,7 +66,7 @@ export const TachoControls = ({ status, lastChange, stats, onStatusChange }: Pro
                     {status === 'Drive' && <span className="absolute bottom-2 text-sm font-mono opacity-90">{formatTime(elapsed)}</span>}
                 </button>
 
-                {/* WORK (Marteau) */}
+                {/* WORK */}
                 <button
                     onClick={() => onStatusChange('Work')}
                     className={getButtonClass('Work', 'bg-blue-600 border-blue-500 text-white')}
@@ -67,7 +76,7 @@ export const TachoControls = ({ status, lastChange, stats, onStatusChange }: Pro
                     {status === 'Work' && <span className="absolute bottom-2 text-sm font-mono opacity-90">{formatTime(elapsed)}</span>}
                 </button>
 
-                {/* AVAILABLE (Carré barré -> Clock) */}
+                {/* AVAILABLE */}
                 <button
                     onClick={() => onStatusChange('Available')}
                     className={getButtonClass('Available', 'bg-yellow-600 border-yellow-500 text-white')}
@@ -77,7 +86,7 @@ export const TachoControls = ({ status, lastChange, stats, onStatusChange }: Pro
                     {status === 'Available' && <span className="absolute bottom-2 text-sm font-mono opacity-90">{formatTime(elapsed)}</span>}
                 </button>
 
-                {/* REST (Lit) */}
+                {/* REST */}
                 <button
                     onClick={() => onStatusChange('Rest')}
                     className={getButtonClass('Rest', 'bg-red-600 border-red-500 text-white')}
@@ -91,26 +100,55 @@ export const TachoControls = ({ status, lastChange, stats, onStatusChange }: Pro
             {/* Stats & Alerts Card */}
             <div className="bg-slate-800 rounded-xl p-4 shadow-lg border border-slate-700">
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('dashboard.dailySummary')}</h3>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* Top Row: Total Drive & Service */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                    {/* Drive */}
                     <div className="flex flex-col">
                         <span className="text-xs text-slate-400 mb-1">{t('dashboard.totalDrive')}</span>
                         <div className="flex items-end gap-2">
-                            <span className={clsx("text-2xl font-mono font-bold", stats.totalDrive > 255 ? "text-red-400" : "text-slate-100")}>
+                            <span className={clsx("text-2xl font-mono font-bold", stats.totalDrive > 540 ? "text-red-400" : "text-slate-100")}>
                                 {formatTime(stats.totalDrive)}
                             </span>
                             <span className="text-xs text-slate-500 mb-1">/ 9h00</span>
                         </div>
                         <div className="w-full bg-slate-900 rounded-full h-1.5 mt-2 overflow-hidden">
                             <div
-                                className={clsx("h-full rounded-full", stats.totalDrive > 255 ? "bg-red-500" : "bg-green-500")}
-                                style={{ width: `${Math.min((stats.totalDrive / 540) * 100, 100)}%` }} // 9h = 540m
+                                className={clsx("h-full rounded-full", stats.totalDrive > 540 ? "bg-red-500" : "bg-green-500")}
+                                style={{ width: `${Math.min((stats.totalDrive / 540) * 100, 100)}%` }}
                             />
                         </div>
                     </div>
+
+                    {/* Service */}
+                    <div className="flex flex-col">
+                        <span className="text-xs text-slate-400 mb-1">{t('dashboard.service')}</span>
+                        <div className="flex items-end gap-2">
+                            <span className={clsx("text-2xl font-mono font-bold", stats.continuousService > 360 ? "text-orange-400" : "text-slate-100")}>
+                                {formatTime(stats.totalService)}
+                            </span>
+                        </div>
+                        <div className="w-full bg-slate-900 rounded-full h-1.5 mt-2 overflow-hidden">
+                            {/* Bar shows CONTINUOUS service progress towards 6h, as that's the critical limit? 
+                                 Or total daily service? User asked for total Service indicator. 
+                                 Let's show Total Service but maybe bar reflects continuous status? 
+                                 Or just a generic bar. Let's make it a simple progress based on... well there's no daily limit for service per se (13h amplitude includes breaks).
+                                 Let's just show the value.
+                             */}
+                            <div
+                                className="bg-yellow-500 h-full rounded-full"
+                                style={{ width: `${Math.min((stats.totalService / 780) * 100, 100)}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Bottom Row: Amplitude */}
+                <div className="border-t border-slate-700 pt-4">
                     <div className="flex flex-col">
                         <span className="text-xs text-slate-400 mb-1">{t('dashboard.amplitude')}</span>
                         <div className="flex items-end gap-2">
-                            <span className={clsx("text-2xl font-mono font-bold", stats.amplitude > 720 ? "text-orange-400" : "text-slate-100")}>
+                            <span className={clsx("text-2xl font-mono font-bold", stats.amplitude > 780 ? "text-red-400" : "text-slate-100")}>
                                 {formatTime(stats.amplitude)}
                             </span>
                             <span className="text-xs text-slate-500 mb-1">/ 13h00</span>
@@ -118,17 +156,19 @@ export const TachoControls = ({ status, lastChange, stats, onStatusChange }: Pro
                         <div className="w-full bg-slate-900 rounded-full h-1.5 mt-2 overflow-hidden">
                             <div
                                 className="bg-blue-500 h-full rounded-full"
-                                style={{ width: `${Math.min((stats.amplitude / 780) * 100, 100)}%` }} // 13h = 780m
+                                style={{ width: `${Math.min((stats.amplitude / 780) * 100, 100)}%` }}
                             />
                         </div>
                     </div>
                 </div>
 
                 {/* Alerts */}
-                {stats.totalDrive > 255 && ( // 4h15 = 255m
+                {(showDriveAlert || showServiceAlert) && (
                     <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 animate-pulse">
                         <AlertTriangle className="text-red-500" size={20} />
-                        <span className="text-red-200 text-sm font-medium">{t('dashboard.alertPause')}</span>
+                        <span className="text-red-200 text-sm font-medium">
+                            {showDriveAlert ? t('dashboard.alertPause') : "Pause OBLIGATOIRE (6h Service)"}
+                        </span>
                     </div>
                 )}
             </div>
